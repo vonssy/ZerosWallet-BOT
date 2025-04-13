@@ -173,7 +173,79 @@ class ZerosWallet:
         url = "https://api.zeroswallet.com/auth/mywallet"
         data = FormData()
         data.add_field("token", token)
-        data.add_field("refcode", self.code)
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers, data=data) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
+            
+    async def get_quiz(self, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/quiz/get"
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers) as response:
+                        self.log(response.status)
+                        self.log(await response.text())
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
+            
+    async def my_quiz(self, token: str, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/quiz/my"
+        data = FormData()
+        data.add_field("token", token)
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers, data=data) as response:
+                        self.log(response.status)
+                        self.log(await response.text())
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
+            
+    async def check_quiz(self, token: str, answer: str, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/quiz/check"
+        data = FormData()
+        data.add_field("token", token)
+        data.add_field("answer", answer)
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers, data=data) as response:
+                        self.log(response.status)
+                        self.log(await response.text())
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
+            
+    async def task_pay(self, token: str, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/taskpay"
+        data = FormData()
+        data.add_field("token", token)
         for attempt in range(retries):
             connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
@@ -206,7 +278,6 @@ class ZerosWallet:
         
     async def process_accounts(self, account: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(account) if use_proxy else None
-
         token = None
         while token is None:
             token = await self.user_login(account, proxy)
@@ -232,11 +303,11 @@ class ZerosWallet:
 
         wallet = await self.user_balance(token, proxy)
         if wallet:
-            points = 0
+            points = "N/A"
 
-            tokens = next((item for item in wallet["data"] if item["coin_id"] == "3"), None)
+            tokens = next((item for item in wallet.get("data", []) if item.get("coin_id", None) == "3"), None)
             if tokens:
-                points = tokens.get("balance")
+                points = tokens.get("balance", "N/A")
 
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}Balance :{Style.RESET_ALL}"
@@ -249,16 +320,23 @@ class ZerosWallet:
                 f"{Fore.RED+Style.BRIGHT} Data Is None {Style.RESET_ALL}"
             )
 
-        check_in = await self.perform_checkin(token, proxy)
-        if check_in and check_in.get("success"):
-            self.log(
-                f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
-                f"{Fore.GREEN+Style.BRIGHT} Is Claimed {Style.RESET_ALL}"
-            )
+        task_pay = await self.task_pay(token, proxy)
+        if task_pay:
+            check_in = await self.perform_checkin(token, proxy)
+            if check_in and check_in.get("success"):
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
+                    f"{Fore.GREEN+Style.BRIGHT} Is Claimed {Style.RESET_ALL}"
+                )
+            else:
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} Already Claimed {Style.RESET_ALL}"
+                )
         else:
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
-                f"{Fore.YELLOW+Style.BRIGHT} Already Claimed {Style.RESET_ALL}"
+                f"{Fore.YELLOW+Style.BRIGHT} Perform Failed {Style.RESET_ALL}"
             )
         
     async def main(self):
