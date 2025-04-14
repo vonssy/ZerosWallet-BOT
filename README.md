@@ -11,6 +11,7 @@ Zeros Wallet BOT
   - Auto Run With Private Proxy - Choose 2
   - Auto Run Without Proxy - Choose 3
   - Auto Claim Daily Check-In
+  - Auto Answer Quiz
   - Multi Accounts
 
 ## Requiremnets

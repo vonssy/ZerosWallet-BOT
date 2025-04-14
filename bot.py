@@ -193,8 +193,6 @@ class ZerosWallet:
             try:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.post(url=url, headers=self.headers) as response:
-                        self.log(response.status)
-                        self.log(await response.text())
                         response.raise_for_status()
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -212,8 +210,6 @@ class ZerosWallet:
             try:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.post(url=url, headers=self.headers, data=data) as response:
-                        self.log(response.status)
-                        self.log(await response.text())
                         response.raise_for_status()
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -232,8 +228,6 @@ class ZerosWallet:
             try:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.post(url=url, headers=self.headers, data=data) as response:
-                        self.log(response.status)
-                        self.log(await response.text())
                         response.raise_for_status()
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -337,6 +331,63 @@ class ZerosWallet:
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
                 f"{Fore.YELLOW+Style.BRIGHT} Perform Failed {Style.RESET_ALL}"
+            )
+
+        quiz = await self.get_quiz(proxy)
+        if quiz:
+            question = quiz.get("title")
+            answer = quiz.get("answer")
+            reward = quiz.get("reward")
+
+            self.log(f"{Fore.CYAN+Style.BRIGHT}Quiz    :{Style.RESET_ALL}")
+            self.log(
+                f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                f"{Fore.CYAN+Style.BRIGHT} Question: {Style.RESET_ALL}"
+                f"{Fore.WHITE+Style.BRIGHT}{question}{Style.RESET_ALL}"
+            )
+            self.log(
+                f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                f"{Fore.CYAN+Style.BRIGHT} Answer  : {Style.RESET_ALL}"
+                f"{Fore.BLUE+Style.BRIGHT}{answer}{Style.RESET_ALL}"
+            )
+            
+            my_quiz = await self.my_quiz(token, proxy)
+            if my_quiz:
+                check = await self.check_quiz(token, answer, proxy)
+                if check:
+                    is_success = check.get("success")
+                    if is_success:
+                        self.log(
+                            f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                            f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
+                            f"{Fore.GREEN+Style.BRIGHT}Answered{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA+Style.BRIGHT} - {Style.RESET_ALL}"
+                            f"{Fore.CYAN+Style.BRIGHT}Reward{Style.RESET_ALL}"
+                            f"{Fore.WHITE+Style.BRIGHT} {reward} ZEROS Token {Style.RESET_ALL}"
+                        )
+
+                    else:
+                        self.log(
+                            f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                            f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
+                            f"{Fore.YELLOW+Style.BRIGHT}Already Answered{Style.RESET_ALL}"
+                        )
+                else:
+                    self.log(
+                        f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                        f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
+                        f"{Fore.RED+Style.BRIGHT}Perform Failed{Style.RESET_ALL}"
+                    )
+            else:
+                self.log(
+                    f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                    f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT}Perform Failed{Style.RESET_ALL}"
+                )
+        else:
+            self.log(
+                f"{Fore.CYAN+Style.BRIGHT}Quiz    :{Style.RESET_ALL}"
+                f"{Fore.RED+Style.BRIGHT} GET Data Failed {Style.RESET_ALL}"
             )
         
     async def main(self):
