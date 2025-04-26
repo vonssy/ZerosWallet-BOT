@@ -169,60 +169,10 @@ class ZerosWallet:
                     continue
                 return None
             
-    async def user_balance(self, token: str, proxy=None, retries=5):
+    async def user_wallet(self, token: str, proxy=None, retries=5):
         url = "https://api.zeroswallet.com/auth/mywallet"
         data = FormData()
         data.add_field("token", token)
-        for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
-            try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=self.headers, data=data) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                return None
-            
-    async def get_quiz(self, proxy=None, retries=5):
-        url = "https://api.zeroswallet.com/quiz/get"
-        for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
-            try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=self.headers) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                return None
-            
-    async def my_quiz(self, token: str, proxy=None, retries=5):
-        url = "https://api.zeroswallet.com/quiz/my"
-        data = FormData()
-        data.add_field("token", token)
-        for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
-            try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=self.headers, data=data) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                return None
-            
-    async def check_quiz(self, token: str, answer: str, proxy=None, retries=5):
-        url = "https://api.zeroswallet.com/quiz/check"
-        data = FormData()
-        data.add_field("token", token)
-        data.add_field("answer", answer)
         for attempt in range(retries):
             connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
@@ -269,6 +219,39 @@ class ZerosWallet:
                     await asyncio.sleep(5)
                     continue
                 return None
+            
+    async def get_quiz(self, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/quiz/get"
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
+            
+    async def check_quiz(self, token: str, answer: str, proxy=None, retries=5):
+        url = "https://api.zeroswallet.com/quiz/check"
+        data = FormData()
+        data.add_field("token", token)
+        data.add_field("answer", answer)
+        for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
+            try:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=self.headers, data=data) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                return None
         
     async def process_accounts(self, account: str, use_proxy: bool):
         proxy = self.get_next_proxy_for_account(account) if use_proxy else None
@@ -295,18 +278,27 @@ class ZerosWallet:
             f"{Fore.WHITE+Style.BRIGHT} {proxy} {Style.RESET_ALL}"
         )
 
-        wallet = await self.user_balance(token, proxy)
+        wallet = await self.user_wallet(token, proxy)
         if wallet:
-            points = "N/A"
+            coins = wallet.get("data", [])
 
-            tokens = next((item for item in wallet.get("data", []) if item.get("coin_id", None) == "3"), None)
-            if tokens:
-                points = tokens.get("balance", "N/A")
+            if coins:
+                self.log(f"{Fore.CYAN+Style.BRIGHT}Balance :{Style.RESET_ALL}")
 
-            self.log(
-                f"{Fore.CYAN+Style.BRIGHT}Balance :{Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT} {points} POINT {Style.RESET_ALL}"
-            )
+                for coin in coins:
+                    balance = coin.get("balance")
+                    coin_symbol = coin.get("coin_symbol")
+
+                    self.log(
+                        f"{Fore.MAGENTA+Style.BRIGHT}     ●{Style.RESET_ALL}"
+                        f"{Fore.WHITE+Style.BRIGHT} {balance} {coin_symbol} {Style.RESET_ALL}"
+                    )
+
+            else:
+                self.log(
+                    f"{Fore.CYAN+Style.BRIGHT}Balance :{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} Data Is None {Style.RESET_ALL}"
+                )
             
         else:
             self.log(
@@ -330,14 +322,14 @@ class ZerosWallet:
         else:
             self.log(
                 f"{Fore.CYAN+Style.BRIGHT}Check-In:{Style.RESET_ALL}"
-                f"{Fore.YELLOW+Style.BRIGHT} Perform Failed {Style.RESET_ALL}"
+                f"{Fore.YELLOW+Style.BRIGHT} Claim Failed {Style.RESET_ALL}"
             )
 
         quiz = await self.get_quiz(proxy)
         if quiz:
-            question = quiz.get("title")
-            answer = quiz.get("answer")
-            reward = quiz.get("reward")
+            question = quiz.get("title", "N/A")
+            answer = quiz.get("answer", "N/A")
+            reward = quiz.get("reward", "N/A")
 
             self.log(f"{Fore.CYAN+Style.BRIGHT}Quiz    :{Style.RESET_ALL}")
             self.log(
@@ -351,38 +343,30 @@ class ZerosWallet:
                 f"{Fore.BLUE+Style.BRIGHT}{answer}{Style.RESET_ALL}"
             )
             
-            my_quiz = await self.my_quiz(token, proxy)
-            if my_quiz:
-                check = await self.check_quiz(token, answer, proxy)
-                if check:
-                    is_success = check.get("success")
-                    if is_success:
-                        self.log(
-                            f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
-                            f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
-                            f"{Fore.GREEN+Style.BRIGHT}Answered{Style.RESET_ALL}"
-                            f"{Fore.MAGENTA+Style.BRIGHT} - {Style.RESET_ALL}"
-                            f"{Fore.CYAN+Style.BRIGHT}Reward{Style.RESET_ALL}"
-                            f"{Fore.WHITE+Style.BRIGHT} {reward} ZEROS Token {Style.RESET_ALL}"
-                        )
+            check = await self.check_quiz(token, answer, proxy)
+            if check:
+                is_success = check.get("success")
+                if is_success:
+                    self.log(
+                        f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
+                        f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
+                        f"{Fore.GREEN+Style.BRIGHT}Successfully Answered{Style.RESET_ALL}"
+                        f"{Fore.MAGENTA+Style.BRIGHT} - {Style.RESET_ALL}"
+                        f"{Fore.CYAN+Style.BRIGHT}Reward{Style.RESET_ALL}"
+                        f"{Fore.WHITE+Style.BRIGHT} {reward} ZEROS Token {Style.RESET_ALL}"
+                    )
 
-                    else:
-                        self.log(
-                            f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
-                            f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
-                            f"{Fore.YELLOW+Style.BRIGHT}Already Answered{Style.RESET_ALL}"
-                        )
                 else:
                     self.log(
                         f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
                         f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
-                        f"{Fore.RED+Style.BRIGHT}Perform Failed{Style.RESET_ALL}"
+                        f"{Fore.YELLOW+Style.BRIGHT}Already Answered{Style.RESET_ALL}"
                     )
             else:
                 self.log(
                     f"{Fore.MAGENTA+Style.BRIGHT}     >{Style.RESET_ALL}"
                     f"{Fore.CYAN+Style.BRIGHT} Status  : {Style.RESET_ALL}"
-                    f"{Fore.RED+Style.BRIGHT}Perform Failed{Style.RESET_ALL}"
+                    f"{Fore.RED+Style.BRIGHT}Failed To Send Answer{Style.RESET_ALL}"
                 )
         else:
             self.log(
